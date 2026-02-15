@@ -81,6 +81,14 @@ function setGalleryUploadStatus(message) {
   if (galleryUploadStatus) galleryUploadStatus.innerText = message;
 }
 
+function getErrorMessage(error) {
+  if (!error) return "Unknown error.";
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message || "Unknown error.";
+  if (typeof error === "object" && "message" in error) return String(error.message || "Unknown error.");
+  return "Unknown error.";
+}
+
 function getPublicBaseUrl() {
   const configured = String(PUBLIC_SITE_URL || "").trim();
   if (configured) return configured.replace(/\/+$/, "");
@@ -125,15 +133,20 @@ function clearCapturedPreview() {
 async function uploadBlobToStorage(blob) {
   const supabaseClient = await ensureSupabaseClient();
   const fileName = `photo-${Date.now()}.jpg`;
-  const { error } = await supabaseClient.storage.from(BUCKET).upload(fileName, blob);
-  if (error) throw error;
+  const { error: uploadError } = await supabaseClient.storage.from(BUCKET).upload(fileName, blob);
+  if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`);
+
   const { data } = supabaseClient.storage.from(BUCKET).getPublicUrl(fileName);
+  if (!data?.publicUrl) throw new Error("Storage upload succeeded but no public URL was returned.");
+
   const { error: insertError } = await supabaseClient.from("wedding_photos").insert({
     file_name: fileName,
     public_url: data.publicUrl,
     uploaded_by: "guest"
   });
-  if (insertError) throw insertError;
+  if (insertError) {
+    console.warn("Metadata insert failed, but image upload succeeded:", insertError);
+  }
 }
 
 function stopCameraStream() {
@@ -283,7 +296,7 @@ async function handleGalleryUpload(event) {
     await loadGallery();
   } catch (error) {
     console.error(error);
-    setGalleryUploadStatus("Upload failed. Please check your Supabase setup and try again.");
+    setGalleryUploadStatus(`Upload failed: ${getErrorMessage(error)}`);
   } finally {
     event.target.value = "";
   }
@@ -304,7 +317,7 @@ async function uploadPhoto() {
     clearCapturedPreview();
   } catch (error) {
     console.error(error);
-    setStatus("Upload failed. Please check your Supabase setup and try again.");
+    setStatus(`Upload failed: ${getErrorMessage(error)}`);
     return;
   }
 
@@ -365,7 +378,7 @@ async function loadGallery() {
   } catch (error) {
     console.error(error);
     renderGallery([]);
-    setGalleryUploadStatus("Unable to load gallery. Please check your Supabase setup.");
+    setGalleryUploadStatus(`Unable to load gallery: ${getErrorMessage(error)}`);
   }
 }
 

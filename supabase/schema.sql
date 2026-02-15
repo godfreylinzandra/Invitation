@@ -10,6 +10,9 @@ create table if not exists public.wedding_photos (
   created_at timestamptz not null default now()
 );
 
+grant usage on schema public to anon, authenticated;
+grant select, insert on public.wedding_photos to anon, authenticated;
+
 alter table public.wedding_photos enable row level security;
 
 drop policy if exists "Allow public read wedding_photos" on public.wedding_photos;
