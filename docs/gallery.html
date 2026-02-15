@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -11,22 +11,16 @@
     <section class="gallery-card">
       <header class="gallery-head">
         <a class="back-link" href="index.html">&larr; Back</a>
-        <h1 class="page-title">❤ Photo Gallery</h1>
+        <h1 class="page-title">Photo Gallery</h1>
         <p id="photoCount" class="photo-count">0 photos</p>
       </header>
 
-      <section class="gallery-tools" aria-label="Share and upload photos">
+      <section class="gallery-tools" aria-label="Upload photos">
         <div class="gallery-upload-box">
           <p class="tools-title">Upload your photo</p>
           <label class="btn btn-outline upload-label" for="galleryUploadInput">Choose Photo</label>
           <input id="galleryUploadInput" type="file" accept="image/*" capture="environment">
           <p id="galleryUploadStatus" class="tools-note">You can upload photos taken on your own phone.</p>
-        </div>
-
-        <div class="gallery-qr-box">
-          <p class="tools-title">Scan to open this gallery</p>
-          <img id="galleryQrImage" alt="QR code for this gallery link">
-          <a id="galleryLink" class="gallery-link" target="_blank" rel="noopener noreferrer"></a>
         </div>
       </section>
 
@@ -38,4 +32,3 @@
   <script type="module" src="script.js"></script>
 </body>
 </html>
-

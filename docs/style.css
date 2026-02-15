@@ -250,7 +250,7 @@ button:disabled {
 
 .gallery-tools {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 16px;
   margin-bottom: 18px;
 }
@@ -299,6 +299,27 @@ button:disabled {
   color: #c26108;
   word-break: break-all;
   font-size: 0.92rem;
+}
+
+.qr-page-card {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 20px;
+  border: 2px solid #efd5b8;
+  border-radius: 18px;
+  background: #fffaf4;
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  text-align: center;
+}
+
+.qr-image {
+  width: min(280px, 100%);
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  border: 1px solid #edd9c7;
+  background: #fff;
 }
 
 .media-frame {

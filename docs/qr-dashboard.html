@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard QR</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-qr-target="index.html">
+  <main class="page-shell">
+    <section class="qr-page-card">
+      <a class="back-link" href="index.html">&larr; Back</a>
+      <h1 class="page-title">Dashboard QR</h1>
+      <p class="tools-title">Scan to open the main dashboard</p>
+      <img id="qrImage" class="qr-image" alt="QR code for dashboard link">
+      <a id="qrLink" class="gallery-link" target="_blank" rel="noopener noreferrer"></a>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script type="module" src="script.js"></script>
+</body>
+</html>

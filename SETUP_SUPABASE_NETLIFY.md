@@ -30,4 +30,4 @@ The frontend will fetch public config from:
 Then it will:
 - upload photos to Supabase Storage bucket `wedding-photos`
 - store metadata in table `public.wedding_photos`
-- load gallery from `public.wedding_photos` (fallback to storage list/local mode if needed)
+- load gallery from `public.wedding_photos` (fallback to storage list if needed)

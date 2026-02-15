@@ -1,24 +1,3 @@
-﻿const DEFAULT_INVITE = {
-  couple: "Anna & Mark",
-  date: "March 20, 2026",
-  location: "Manila, Philippines"
-};
-
-const MOCK_GALLERY = [
-  {
-    url: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1200&q=80",
-    alt: "Bride and groom smiling under flower arch"
-  },
-  {
-    url: "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=1200&q=80",
-    alt: "Wedding rings and bouquet"
-  },
-  {
-    url: "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=1200&q=80",
-    alt: "Guests celebrating at reception"
-  }
-];
-
 let SUPABASE_URL = globalThis.SUPABASE_URL || "";
 let SUPABASE_KEY = globalThis.SUPABASE_ANON_KEY || "";
 let BUCKET = globalThis.SUPABASE_BUCKET || "";
@@ -36,10 +15,8 @@ const gallery = document.getElementById("gallery");
 const photoCount = document.getElementById("photoCount");
 const galleryUploadInput = document.getElementById("galleryUploadInput");
 const galleryUploadStatus = document.getElementById("galleryUploadStatus");
-const galleryQrImage = document.getElementById("galleryQrImage");
-const galleryLink = document.getElementById("galleryLink");
-const inviteQrImage = document.getElementById("inviteQrImage");
-const inviteGalleryLink = document.getElementById("inviteGalleryLink");
+const qrImage = document.getElementById("qrImage");
+const qrLink = document.getElementById("qrLink");
 let activeStream = null;
 let currentFacingMode = "environment";
 let supabaseInitAttempted = false;
@@ -63,7 +40,7 @@ async function loadPublicConfig() {
       SUPABASE_KEY = config.SUPABASE_ANON_KEY || SUPABASE_KEY;
       BUCKET = config.SUPABASE_BUCKET || BUCKET || "wedding-photos";
     } catch (error) {
-      console.warn("Public config unavailable. Using local mode.", error);
+      console.warn("Public config unavailable.", error);
     }
   })();
 
@@ -72,8 +49,13 @@ async function loadPublicConfig() {
 
 async function ensureSupabaseClient() {
   await loadPublicConfig();
-  if (!hasSupabaseConfig() || supabase) return supabase;
-  if (supabaseInitAttempted) return null;
+  if (!hasSupabaseConfig()) {
+    throw new Error("Supabase config is missing. Check docs/config.js or Netlify environment variables.");
+  }
+  if (supabase) return supabase;
+  if (supabaseInitAttempted) {
+    throw new Error("Supabase initialization failed.");
+  }
   supabaseInitAttempted = true;
 
   try {
@@ -86,8 +68,7 @@ async function ensureSupabaseClient() {
     supabase = module.createClient(SUPABASE_URL, SUPABASE_KEY);
     return supabase;
   } catch (err) {
-    console.warn("Supabase SDK unavailable. Falling back to local storage mode.", err);
-    return null;
+    throw new Error(`Supabase SDK unavailable: ${err instanceof Error ? err.message : "unknown error"}`);
   }
 }
 
@@ -99,44 +80,17 @@ function setGalleryUploadStatus(message) {
   if (galleryUploadStatus) galleryUploadStatus.innerText = message;
 }
 
-function initGalleryShareTools() {
-  if (!galleryQrImage || !galleryLink) return;
+function initQrPage() {
+  if (!qrImage || !qrLink) return;
+  const qrTarget = document.body?.dataset?.qrTarget;
+  if (!qrTarget) return;
 
-  const galleryUrl = new URL("gallery.html", window.location.href).toString();
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(galleryUrl)}`;
+  const targetUrl = new URL(qrTarget, window.location.href).toString();
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(targetUrl)}`;
 
-  galleryQrImage.src = qrUrl;
-  galleryLink.href = galleryUrl;
-  galleryLink.textContent = galleryUrl;
-}
-
-function initInviteQr() {
-  if (!inviteQrImage || !inviteGalleryLink) return;
-
-  const galleryUrl = new URL("gallery.html", window.location.href).toString();
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(galleryUrl)}`;
-
-  inviteQrImage.src = qrUrl;
-  inviteGalleryLink.href = galleryUrl;
-  inviteGalleryLink.textContent = galleryUrl;
-}
-
-function getLocalPhotos() {
-  try {
-    return JSON.parse(localStorage.getItem("weddingPhotos") || "[]");
-  } catch {
-    return [];
-  }
-}
-
-function saveLocalPhoto(dataUrl) {
-  const photos = getLocalPhotos();
-  photos.unshift({
-    id: Date.now(),
-    url: dataUrl,
-    alt: `Wedding memory from ${DEFAULT_INVITE.couple}`
-  });
-  localStorage.setItem("weddingPhotos", JSON.stringify(photos.slice(0, 50)));
+  qrImage.src = qrUrl;
+  qrLink.href = targetUrl;
+  qrLink.textContent = targetUrl;
 }
 
 function clearCapturedPreview() {
@@ -151,26 +105,16 @@ function clearCapturedPreview() {
 
 async function uploadBlobToStorage(blob) {
   const supabaseClient = await ensureSupabaseClient();
-  if (hasSupabaseConfig() && supabaseClient) {
-    const fileName = `photo-${Date.now()}.jpg`;
-    const { error } = await supabaseClient.storage.from(BUCKET).upload(fileName, blob);
-    if (error) throw error;
-    const { data } = supabaseClient.storage.from(BUCKET).getPublicUrl(fileName);
-    await supabaseClient.from("wedding_photos").insert({
-      file_name: fileName,
-      public_url: data.publicUrl,
-      uploaded_by: "guest"
-    });
-    return "remote";
-  }
-
-  const localDataUrl = await new Promise(resolve => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(String(reader.result || ""));
-    reader.readAsDataURL(blob);
+  const fileName = `photo-${Date.now()}.jpg`;
+  const { error } = await supabaseClient.storage.from(BUCKET).upload(fileName, blob);
+  if (error) throw error;
+  const { data } = supabaseClient.storage.from(BUCKET).getPublicUrl(fileName);
+  const { error: insertError } = await supabaseClient.from("wedding_photos").insert({
+    file_name: fileName,
+    public_url: data.publicUrl,
+    uploaded_by: "guest"
   });
-  if (localDataUrl) saveLocalPhoto(localDataUrl);
-  return "local";
+  if (insertError) throw insertError;
 }
 
 function stopCameraStream() {
@@ -232,7 +176,7 @@ async function startCamera() {
       cameraReady = true;
       captureBtn.disabled = false;
       if (flipCameraBtn) flipCameraBtn.disabled = false;
-      setStatus(hasSupabaseConfig() ? "Camera ready." : "Camera ready. Mock mode is active.");
+      setStatus("Camera ready.");
     };
 
     video.addEventListener("loadedmetadata", onCameraReady, { once: true });
@@ -320,7 +264,7 @@ async function handleGalleryUpload(event) {
     await loadGallery();
   } catch (error) {
     console.error(error);
-    setGalleryUploadStatus("Upload failed. Please try another photo.");
+    setGalleryUploadStatus("Upload failed. Please check your Supabase setup and try again.");
   } finally {
     event.target.value = "";
   }
@@ -336,17 +280,17 @@ async function uploadPhoto() {
   }
 
   try {
-    const destination = await uploadBlobToStorage(blob);
-    setStatus(destination === "remote" ? "Uploaded successfully. Opening gallery..." : "Saved locally in mock mode. Opening gallery...");
+    await uploadBlobToStorage(blob);
+    setStatus("Uploaded successfully. Opening gallery...");
     clearCapturedPreview();
   } catch (error) {
     console.error(error);
-    setStatus("Upload failed. Please try again.");
+    setStatus("Upload failed. Please check your Supabase setup and try again.");
     return;
   }
 
   if (uploadBtn) uploadBtn.disabled = true;
-  loadGallery();
+  await loadGallery();
   window.setTimeout(() => {
     window.location.href = "gallery.html";
   }, 500);
@@ -370,35 +314,40 @@ function renderGallery(items) {
 
 async function loadGallery() {
   if (!gallery) return;
-  const supabaseClient = await ensureSupabaseClient();
 
-  if (hasSupabaseConfig() && supabaseClient) {
+  try {
+    const supabaseClient = await ensureSupabaseClient();
+
     const { data: rows, error: dbError } = await supabaseClient
       .from("wedding_photos")
       .select("public_url, created_at")
       .order("created_at", { ascending: false });
+
     if (!dbError && rows?.length) {
       const photos = rows.map(row => ({
         url: row.public_url,
-        alt: `${DEFAULT_INVITE.couple} wedding memory`
+        alt: "Wedding memory"
       }));
       renderGallery(photos);
       return;
     }
 
-    const { data: files, error } = await supabaseClient.storage.from(BUCKET).list();
-    if (!error && files?.length) {
+    const { data: files, error: listError } = await supabaseClient.storage.from(BUCKET).list();
+    if (!listError && files?.length) {
       const photos = files.map(file => {
         const { data } = supabaseClient.storage.from(BUCKET).getPublicUrl(file.name);
-        return { url: data.publicUrl, alt: `${DEFAULT_INVITE.couple} wedding memory` };
+        return { url: data.publicUrl, alt: "Wedding memory" };
       });
       renderGallery(photos);
       return;
     }
-  }
 
-  const local = getLocalPhotos();
-  renderGallery(local.length ? local : MOCK_GALLERY);
+    renderGallery([]);
+  } catch (error) {
+    console.error(error);
+    renderGallery([]);
+    setGalleryUploadStatus("Unable to load gallery. Please check your Supabase setup.");
+  }
 }
 
 if (captureBtn) captureBtn.addEventListener("click", capturePhoto);
@@ -409,8 +358,6 @@ if (galleryUploadInput) galleryUploadInput.addEventListener("change", handleGall
 
 startCamera();
 loadGallery();
-initGalleryShareTools();
-initInviteQr();
+initQrPage();
 
 window.addEventListener("beforeunload", stopCameraStream);
-
