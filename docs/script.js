@@ -18,11 +18,19 @@ const galleryUploadInput = document.getElementById("galleryUploadInput");
 const galleryUploadStatus = document.getElementById("galleryUploadStatus");
 const qrImage = document.getElementById("qrImage");
 const qrLink = document.getElementById("qrLink");
+const lightbox = document.getElementById("lightbox");
+const lightboxImage = document.getElementById("lightboxImage");
+const lightboxClose = document.getElementById("lightboxClose");
+const lightboxPrev = document.getElementById("lightboxPrev");
+const lightboxNext = document.getElementById("lightboxNext");
 let activeStream = null;
 let currentFacingMode = "environment";
 let supabaseInitAttempted = false;
 let publicConfigPromise = null;
 let supabaseSdkPromise = null;
+let galleryItems = [];
+let activeGalleryIndex = -1;
+let touchStartX = null;
 
 function hasSupabaseConfig() {
   return Boolean(SUPABASE_URL && SUPABASE_KEY && BUCKET);
@@ -173,6 +181,92 @@ function clearCapturedPreview() {
     canvas.width = 0;
     canvas.height = 0;
   }
+}
+
+function updateLightbox() {
+  if (!lightbox || !lightboxImage) return;
+  if (activeGalleryIndex < 0 || activeGalleryIndex >= galleryItems.length) return;
+
+  const item = galleryItems[activeGalleryIndex];
+  lightboxImage.src = item.url;
+  lightboxImage.alt = item.alt || "Wedding photo";
+}
+
+function openLightbox(index) {
+  if (!lightbox || !lightboxImage) return;
+  if (index < 0 || index >= galleryItems.length) return;
+
+  activeGalleryIndex = index;
+  updateLightbox();
+  lightbox.hidden = false;
+  lightbox.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+
+function closeLightbox() {
+  if (!lightbox) return;
+  lightbox.hidden = true;
+  lightbox.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modal-open");
+  activeGalleryIndex = -1;
+  if (lightboxImage) {
+    lightboxImage.removeAttribute("src");
+  }
+}
+
+function showNextPhoto() {
+  if (!galleryItems.length) return;
+  activeGalleryIndex = (activeGalleryIndex + 1) % galleryItems.length;
+  updateLightbox();
+}
+
+function showPrevPhoto() {
+  if (!galleryItems.length) return;
+  activeGalleryIndex = (activeGalleryIndex - 1 + galleryItems.length) % galleryItems.length;
+  updateLightbox();
+}
+
+function initLightbox() {
+  if (!lightbox || !lightboxImage) return;
+
+  if (lightboxClose) {
+    lightboxClose.addEventListener("click", closeLightbox);
+  }
+  if (lightboxPrev) {
+    lightboxPrev.addEventListener("click", showPrevPhoto);
+  }
+  if (lightboxNext) {
+    lightboxNext.addEventListener("click", showNextPhoto);
+  }
+
+  lightbox.addEventListener("click", event => {
+    if (event.target === lightbox) closeLightbox();
+  });
+
+  document.addEventListener("keydown", event => {
+    if (!lightbox || lightbox.hidden) return;
+    if (event.key === "Escape") closeLightbox();
+    if (event.key === "ArrowRight") showNextPhoto();
+    if (event.key === "ArrowLeft") showPrevPhoto();
+  });
+
+  lightbox.addEventListener("touchstart", event => {
+    touchStartX = event.changedTouches[0]?.clientX ?? null;
+  }, { passive: true });
+
+  lightbox.addEventListener("touchend", event => {
+    if (touchStartX === null) return;
+    const touchEndX = event.changedTouches[0]?.clientX ?? touchStartX;
+    const delta = touchEndX - touchStartX;
+    touchStartX = null;
+
+    if (Math.abs(delta) < 40) return;
+    if (delta < 0) {
+      showNextPhoto();
+      return;
+    }
+    showPrevPhoto();
+  }, { passive: true });
 }
 
 async function uploadBlobToStorage(blob) {
@@ -377,15 +471,17 @@ async function uploadPhoto() {
 function renderGallery(items) {
   if (!gallery) return;
 
+  galleryItems = items.slice();
   gallery.innerHTML = "";
   if (photoCount) {
     photoCount.innerText = `${items.length} photo${items.length === 1 ? "" : "s"}`;
   }
-  items.forEach(item => {
+  items.forEach((item, index) => {
     const img = document.createElement("img");
     img.src = item.url;
     img.alt = item.alt || "Wedding photo";
     img.loading = "lazy";
+    img.addEventListener("click", () => openLightbox(index));
     gallery.appendChild(img);
   });
 }
@@ -426,5 +522,6 @@ if (galleryUploadInput) galleryUploadInput.addEventListener("change", handleGall
 startCamera();
 loadGallery();
 initQrPage();
+initLightbox();
 
 window.addEventListener("beforeunload", stopCameraStream);
