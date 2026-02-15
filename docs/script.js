@@ -1,6 +1,7 @@
 let SUPABASE_URL = globalThis.SUPABASE_URL || "";
 let SUPABASE_KEY = globalThis.SUPABASE_ANON_KEY || "";
 let BUCKET = globalThis.SUPABASE_BUCKET || "";
+let PUBLIC_SITE_URL = globalThis.PUBLIC_SITE_URL || "";
 let supabase = null;
 
 const video = document.getElementById("video");
@@ -80,12 +81,30 @@ function setGalleryUploadStatus(message) {
   if (galleryUploadStatus) galleryUploadStatus.innerText = message;
 }
 
+function getPublicBaseUrl() {
+  const configured = String(PUBLIC_SITE_URL || "").trim();
+  if (configured) return configured.replace(/\/+$/, "");
+
+  const host = window.location.hostname;
+  const isLocalhost = host === "localhost" || host === "127.0.0.1" || host === "::1";
+  if (isLocalhost) return "";
+  return window.location.origin.replace(/\/+$/, "");
+}
+
 function initQrPage() {
   if (!qrImage || !qrLink) return;
   const qrTarget = document.body?.dataset?.qrTarget;
   if (!qrTarget) return;
 
-  const targetUrl = new URL(qrTarget, window.location.href).toString();
+  const publicBaseUrl = getPublicBaseUrl();
+  if (!publicBaseUrl) {
+    qrImage.removeAttribute("src");
+    qrLink.removeAttribute("href");
+    qrLink.textContent = "Set window.PUBLIC_SITE_URL in config.js to generate a public QR link.";
+    return;
+  }
+
+  const targetUrl = new URL(qrTarget, `${publicBaseUrl}/`).toString();
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(targetUrl)}`;
 
   qrImage.src = qrUrl;
