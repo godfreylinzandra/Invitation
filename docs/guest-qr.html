@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guest QR Copy</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="page-shell">
+    <section class="gallery-card">
+      <header class="gallery-head">
+        <a class="back-link" href="index.html">&larr; Back</a>
+        <h1 class="page-title">Guest QR Copy</h1>
+        <p class="photo-count">Share</p>
+      </header>
+
+      <section class="qr-grid" aria-label="Guest QR codes">
+        <article class="qr-page-card">
+          <p class="tools-title">Gallery QR</p>
+          <img id="guestGalleryQr" class="qr-image" alt="QR code for gallery">
+          <a id="guestGalleryLink" class="gallery-link" target="_blank" rel="noopener noreferrer"></a>
+        </article>
+
+        <article class="qr-page-card">
+          <p class="tools-title">Dashboard QR</p>
+          <img id="guestDashboardQr" class="qr-image" alt="QR code for dashboard">
+          <a id="guestDashboardLink" class="gallery-link" target="_blank" rel="noopener noreferrer"></a>
+        </article>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    function setQr(imgId, linkId, targetPath) {
+      const img = document.getElementById(imgId);
+      const link = document.getElementById(linkId);
+      if (!img || !link) return;
+
+      const targetUrl = new URL(targetPath, window.location.href).toString();
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(targetUrl)}`;
+
+      img.src = qrUrl;
+      link.href = targetUrl;
+      link.textContent = targetUrl;
+    }
+
+    setQr("guestGalleryQr", "guestGalleryLink", "gallery.html");
+    setQr("guestDashboardQr", "guestDashboardLink", "index.html");
+  </script>
+</body>
+</html>
