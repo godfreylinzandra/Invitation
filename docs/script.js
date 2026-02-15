@@ -19,10 +19,9 @@ const MOCK_GALLERY = [
   }
 ];
 
-const SUPABASE_URL = globalThis.SUPABASE_URL || "";
-const SUPABASE_KEY = globalThis.SUPABASE_ANON_KEY || "";
-const BUCKET = globalThis.SUPABASE_BUCKET || "";
-const hasSupabaseConfig = Boolean(SUPABASE_URL && SUPABASE_KEY && BUCKET);
+let SUPABASE_URL = globalThis.SUPABASE_URL || "";
+let SUPABASE_KEY = globalThis.SUPABASE_ANON_KEY || "";
+let BUCKET = globalThis.SUPABASE_BUCKET || "";
 let supabase = null;
 
 const video = document.getElementById("video");
@@ -44,9 +43,36 @@ const inviteGalleryLink = document.getElementById("inviteGalleryLink");
 let activeStream = null;
 let currentFacingMode = "environment";
 let supabaseInitAttempted = false;
+let publicConfigPromise = null;
+
+function hasSupabaseConfig() {
+  return Boolean(SUPABASE_URL && SUPABASE_KEY && BUCKET);
+}
+
+async function loadPublicConfig() {
+  if (publicConfigPromise) return publicConfigPromise;
+  publicConfigPromise = (async () => {
+    if (hasSupabaseConfig()) return;
+    if (!window.location.protocol.startsWith("http")) return;
+
+    try {
+      const response = await fetch("/.netlify/functions/public-config", { cache: "no-store" });
+      if (!response.ok) return;
+      const config = await response.json();
+      SUPABASE_URL = config.SUPABASE_URL || SUPABASE_URL;
+      SUPABASE_KEY = config.SUPABASE_ANON_KEY || SUPABASE_KEY;
+      BUCKET = config.SUPABASE_BUCKET || BUCKET || "wedding-photos";
+    } catch (error) {
+      console.warn("Public config unavailable. Using local mode.", error);
+    }
+  })();
+
+  return publicConfigPromise;
+}
 
 async function ensureSupabaseClient() {
-  if (!hasSupabaseConfig || supabase) return supabase;
+  await loadPublicConfig();
+  if (!hasSupabaseConfig() || supabase) return supabase;
   if (supabaseInitAttempted) return null;
   supabaseInitAttempted = true;
 
@@ -125,10 +151,16 @@ function clearCapturedPreview() {
 
 async function uploadBlobToStorage(blob) {
   const supabaseClient = await ensureSupabaseClient();
-  if (hasSupabaseConfig && supabaseClient) {
+  if (hasSupabaseConfig() && supabaseClient) {
     const fileName = `photo-${Date.now()}.jpg`;
     const { error } = await supabaseClient.storage.from(BUCKET).upload(fileName, blob);
     if (error) throw error;
+    const { data } = supabaseClient.storage.from(BUCKET).getPublicUrl(fileName);
+    await supabaseClient.from("wedding_photos").insert({
+      file_name: fileName,
+      public_url: data.publicUrl,
+      uploaded_by: "guest"
+    });
     return "remote";
   }
 
@@ -200,7 +232,7 @@ async function startCamera() {
       cameraReady = true;
       captureBtn.disabled = false;
       if (flipCameraBtn) flipCameraBtn.disabled = false;
-      setStatus(hasSupabaseConfig ? "Camera ready." : "Camera ready. Mock mode is active.");
+      setStatus(hasSupabaseConfig() ? "Camera ready." : "Camera ready. Mock mode is active.");
     };
 
     video.addEventListener("loadedmetadata", onCameraReady, { once: true });
@@ -340,7 +372,20 @@ async function loadGallery() {
   if (!gallery) return;
   const supabaseClient = await ensureSupabaseClient();
 
-  if (hasSupabaseConfig && supabaseClient) {
+  if (hasSupabaseConfig() && supabaseClient) {
+    const { data: rows, error: dbError } = await supabaseClient
+      .from("wedding_photos")
+      .select("public_url, created_at")
+      .order("created_at", { ascending: false });
+    if (!dbError && rows?.length) {
+      const photos = rows.map(row => ({
+        url: row.public_url,
+        alt: `${DEFAULT_INVITE.couple} wedding memory`
+      }));
+      renderGallery(photos);
+      return;
+    }
+
     const { data: files, error } = await supabaseClient.storage.from(BUCKET).list();
     if (!error && files?.length) {
       const photos = files.map(file => {
