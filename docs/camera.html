@@ -1,0 +1,39 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capture Memories</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="page-shell">
+    <section class="camera-card">
+      <a class="back-link" href="index.html">&larr; Back</a>
+      <h1 class="page-title">Capture Memories</h1>
+
+      <div class="media-frame">
+        <video id="video" autoplay muted playsinline></video>
+        <img id="preview" alt="Captured preview" hidden>
+      </div>
+
+      <canvas id="canvas"></canvas>
+
+      <div class="actions">
+        <button id="capture" class="btn btn-primary">Capture Photo</button>
+        <button id="flipCamera" class="btn btn-outline" disabled>Flip Camera</button>
+        <button id="upload" class="btn btn-outline" disabled>Upload</button>
+      </div>
+
+      <div class="photo-fallback">
+        <label for="fileInput">No camera feed? Choose a photo</label>
+        <input id="fileInput" type="file" accept="image/*" capture="environment">
+      </div>
+
+      <p id="status">Allow camera access to start.</p>
+    </section>
+  </main>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
