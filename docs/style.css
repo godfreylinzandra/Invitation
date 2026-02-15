@@ -322,6 +322,12 @@ button:disabled {
   background: #fff;
 }
 
+.qr-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
 .media-frame {
   border-radius: 26px;
   overflow: hidden;
@@ -403,6 +409,10 @@ canvas {
   }
 
   .gallery-tools {
+    grid-template-columns: 1fr;
+  }
+
+  .qr-grid {
     grid-template-columns: 1fr;
   }
 
