@@ -27,6 +27,12 @@
           <img id="guestDashboardQr" class="qr-image" alt="QR code for dashboard">
           <a id="guestDashboardLink" class="gallery-link" target="_blank" rel="noopener noreferrer"></a>
         </article>
+
+        <article class="qr-page-card">
+          <p class="tools-title">GitHub QR</p>
+          <img id="guestGithubQr" class="qr-image" alt="QR code for GitHub link">
+          <a id="guestGithubLink" class="gallery-link" target="_blank" rel="noopener noreferrer"></a>
+        </article>
       </section>
     </section>
   </main>
@@ -64,8 +70,28 @@
       link.textContent = targetUrl;
     }
 
+    function setAbsoluteQr(imgId, linkId, absoluteUrl) {
+      const img = document.getElementById(imgId);
+      const link = document.getElementById(linkId);
+      if (!img || !link) return;
+
+      const cleanUrl = String(absoluteUrl || "").trim();
+      if (!cleanUrl) {
+        img.removeAttribute("src");
+        link.removeAttribute("href");
+        link.textContent = "Set window.GITHUB_SITE_URL in config.js.";
+        return;
+      }
+
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(cleanUrl)}`;
+      img.src = qrUrl;
+      link.href = cleanUrl;
+      link.textContent = cleanUrl;
+    }
+
     setQr("guestGalleryQr", "guestGalleryLink", "gallery.html");
     setQr("guestDashboardQr", "guestDashboardLink", "index.html");
+    setAbsoluteQr("guestGithubQr", "guestGithubLink", window.GITHUB_SITE_URL);
   </script>
 </body>
 </html>
