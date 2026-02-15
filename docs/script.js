@@ -409,17 +409,6 @@ async function loadGallery() {
       renderGallery(photos);
       return;
     }
-
-    const { data: files, error: listError } = await supabaseClient.storage.from(BUCKET).list();
-    if (!listError && files?.length) {
-      const photos = files.map(file => {
-        const { data } = supabaseClient.storage.from(BUCKET).getPublicUrl(file.name);
-        return { url: data.publicUrl, alt: "Wedding memory" };
-      });
-      renderGallery(photos);
-      return;
-    }
-
     renderGallery([]);
   } catch (error) {
     console.error(error);
