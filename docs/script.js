@@ -269,6 +269,43 @@ function initLightbox() {
   }, { passive: true });
 }
 
+function closeAllPhotoMenus() {
+  const menus = document.querySelectorAll(".photo-menu");
+  menus.forEach(menu => {
+    menu.hidden = true;
+  });
+}
+
+async function deletePhoto(item) {
+  const confirmed = window.confirm("Delete this photo permanently?");
+  if (!confirmed) return;
+
+  try {
+    const supabaseClient = await ensureSupabaseClient();
+    if (!item?.id) throw new Error("Photo id is missing.");
+
+    const { error: dbDeleteError } = await supabaseClient
+      .from("wedding_photos")
+      .delete()
+      .eq("id", item.id);
+    if (dbDeleteError) throw new Error(`Delete failed: ${dbDeleteError.message}`);
+
+    if (item.file_name) {
+      const { error: storageDeleteError } = await supabaseClient.storage.from(BUCKET).remove([item.file_name]);
+      if (storageDeleteError) {
+        console.warn("Storage delete failed, but DB row was removed:", storageDeleteError);
+      }
+    }
+
+    setGalleryUploadStatus("Photo deleted.");
+    closeLightbox();
+    await loadGallery();
+  } catch (error) {
+    console.error(error);
+    setGalleryUploadStatus(`Delete failed: ${getErrorMessage(error)}`);
+  }
+}
+
 async function uploadBlobToStorage(blob) {
   const supabaseClient = await ensureSupabaseClient();
   const random = Math.random().toString(36).slice(2, 10);
@@ -477,12 +514,47 @@ function renderGallery(items) {
     photoCount.innerText = `${items.length} photo${items.length === 1 ? "" : "s"}`;
   }
   items.forEach((item, index) => {
+    const card = document.createElement("div");
+    card.className = "gallery-item";
+
     const img = document.createElement("img");
     img.src = item.url;
     img.alt = item.alt || "Wedding photo";
     img.loading = "lazy";
     img.addEventListener("click", () => openLightbox(index));
-    gallery.appendChild(img);
+
+    const menuBtn = document.createElement("button");
+    menuBtn.type = "button";
+    menuBtn.className = "photo-menu-trigger";
+    menuBtn.setAttribute("aria-label", "Photo options");
+    menuBtn.textContent = "...";
+
+    const menu = document.createElement("div");
+    menu.className = "photo-menu";
+    menu.hidden = true;
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "photo-delete-btn";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.addEventListener("click", async event => {
+      event.stopPropagation();
+      menu.hidden = true;
+      await deletePhoto(item);
+    });
+
+    menuBtn.addEventListener("click", event => {
+      event.stopPropagation();
+      const willOpen = menu.hidden;
+      closeAllPhotoMenus();
+      menu.hidden = !willOpen;
+    });
+
+    menu.appendChild(deleteBtn);
+    card.appendChild(img);
+    card.appendChild(menuBtn);
+    card.appendChild(menu);
+    gallery.appendChild(card);
   });
 }
 
@@ -494,11 +566,13 @@ async function loadGallery() {
 
     const { data: rows, error: dbError } = await supabaseClient
       .from("wedding_photos")
-      .select("public_url, created_at")
+      .select("id, file_name, public_url, created_at")
       .order("created_at", { ascending: false });
 
     if (!dbError && rows?.length) {
       const photos = rows.map(row => ({
+        id: row.id,
+        file_name: row.file_name,
         url: row.public_url,
         alt: "Wedding memory"
       }));
@@ -518,6 +592,7 @@ if (flipCameraBtn) flipCameraBtn.addEventListener("click", flipCamera);
 if (uploadBtn) uploadBtn.addEventListener("click", uploadPhoto);
 if (fileInput) fileInput.addEventListener("change", handleFallbackFile);
 if (galleryUploadInput) galleryUploadInput.addEventListener("change", handleGalleryUpload);
+document.addEventListener("click", closeAllPhotoMenus);
 
 startCamera();
 loadGallery();

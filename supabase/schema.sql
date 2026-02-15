@@ -11,7 +11,7 @@ create table if not exists public.wedding_photos (
 );
 
 grant usage on schema public to anon, authenticated;
-grant select, insert on public.wedding_photos to anon, authenticated;
+grant select, insert, delete on public.wedding_photos to anon, authenticated;
 
 alter table public.wedding_photos enable row level security;
 
@@ -29,6 +29,13 @@ for insert
 to anon, authenticated
 with check (true);
 
+drop policy if exists "Allow public delete wedding_photos" on public.wedding_photos;
+create policy "Allow public delete wedding_photos"
+on public.wedding_photos
+for delete
+to anon, authenticated
+using (true);
+
 insert into storage.buckets (id, name, public)
 values ('wedding-photos', 'wedding-photos', true)
 on conflict (id) do nothing;
@@ -38,7 +45,7 @@ set public = true
 where id = 'wedding-photos';
 
 grant usage on schema storage to anon, authenticated;
-grant select, insert, update on storage.objects to anon, authenticated;
+grant select, insert, update, delete on storage.objects to anon, authenticated;
 
 drop policy if exists "Allow public upload wedding photos" on storage.objects;
 create policy "Allow public upload wedding photos"
@@ -61,3 +68,10 @@ for update
 to anon, authenticated
 using (bucket_id = 'wedding-photos')
 with check (bucket_id = 'wedding-photos');
+
+drop policy if exists "Allow public delete wedding photos" on storage.objects;
+create policy "Allow public delete wedding photos"
+on storage.objects
+for delete
+to anon, authenticated
+using (bucket_id = 'wedding-photos');
