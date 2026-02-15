@@ -33,6 +33,13 @@ insert into storage.buckets (id, name, public)
 values ('wedding-photos', 'wedding-photos', true)
 on conflict (id) do nothing;
 
+update storage.buckets
+set public = true
+where id = 'wedding-photos';
+
+grant usage on schema storage to anon, authenticated;
+grant select, insert, update on storage.objects to anon, authenticated;
+
 drop policy if exists "Allow public upload wedding photos" on storage.objects;
 create policy "Allow public upload wedding photos"
 on storage.objects
@@ -46,3 +53,11 @@ on storage.objects
 for select
 to anon, authenticated
 using (bucket_id = 'wedding-photos');
+
+drop policy if exists "Allow public update wedding photos" on storage.objects;
+create policy "Allow public update wedding photos"
+on storage.objects
+for update
+to anon, authenticated
+using (bucket_id = 'wedding-photos')
+with check (bucket_id = 'wedding-photos');

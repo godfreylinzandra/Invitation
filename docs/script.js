@@ -177,7 +177,8 @@ function clearCapturedPreview() {
 
 async function uploadBlobToStorage(blob) {
   const supabaseClient = await ensureSupabaseClient();
-  const fileName = `photo-${Date.now()}.jpg`;
+  const random = Math.random().toString(36).slice(2, 10);
+  const fileName = `photo-${Date.now()}-${random}.jpg`;
   const { error: uploadError } = await supabaseClient.storage.from(BUCKET).upload(fileName, blob);
   if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`);
 
