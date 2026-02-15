@@ -39,6 +39,8 @@ const galleryUploadInput = document.getElementById("galleryUploadInput");
 const galleryUploadStatus = document.getElementById("galleryUploadStatus");
 const galleryQrImage = document.getElementById("galleryQrImage");
 const galleryLink = document.getElementById("galleryLink");
+const inviteQrImage = document.getElementById("inviteQrImage");
+const inviteGalleryLink = document.getElementById("inviteGalleryLink");
 let activeStream = null;
 let currentFacingMode = "environment";
 let supabaseInitAttempted = false;
@@ -80,6 +82,17 @@ function initGalleryShareTools() {
   galleryQrImage.src = qrUrl;
   galleryLink.href = galleryUrl;
   galleryLink.textContent = galleryUrl;
+}
+
+function initInviteQr() {
+  if (!inviteQrImage || !inviteGalleryLink) return;
+
+  const galleryUrl = new URL("gallery.html", window.location.href).toString();
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(galleryUrl)}`;
+
+  inviteQrImage.src = qrUrl;
+  inviteGalleryLink.href = galleryUrl;
+  inviteGalleryLink.textContent = galleryUrl;
 }
 
 function getLocalPhotos() {
@@ -352,6 +365,7 @@ if (galleryUploadInput) galleryUploadInput.addEventListener("change", handleGall
 startCamera();
 loadGallery();
 initGalleryShareTools();
+initInviteQr();
 
 window.addEventListener("beforeunload", stopCameraStream);
 
