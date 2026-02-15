@@ -22,6 +22,7 @@ let activeStream = null;
 let currentFacingMode = "environment";
 let supabaseInitAttempted = false;
 let publicConfigPromise = null;
+let supabaseSdkPromise = null;
 
 function hasSupabaseConfig() {
   return Boolean(SUPABASE_URL && SUPABASE_KEY && BUCKET);
@@ -60,17 +61,61 @@ async function ensureSupabaseClient() {
   supabaseInitAttempted = true;
 
   try {
-    if (globalThis.supabase?.createClient) {
-      supabase = globalThis.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      return supabase;
-    }
-
-    const module = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.js");
-    supabase = module.createClient(SUPABASE_URL, SUPABASE_KEY);
+    await ensureSupabaseSdk();
+    supabase = globalThis.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     return supabase;
   } catch (err) {
     throw new Error(`Supabase SDK unavailable: ${err instanceof Error ? err.message : "unknown error"}`);
   }
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[data-sdk=\"${src}\"]`);
+    if (existing) {
+      if (globalThis.supabase?.createClient) {
+        resolve();
+        return;
+      }
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error(`Failed to load ${src}`)), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.defer = true;
+    script.dataset.sdk = src;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load ${src}`));
+    document.head.appendChild(script);
+  });
+}
+
+async function ensureSupabaseSdk() {
+  if (globalThis.supabase?.createClient) return;
+  if (supabaseSdkPromise) return supabaseSdkPromise;
+
+  const sources = [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+    "https://unpkg.com/@supabase/supabase-js@2"
+  ];
+
+  supabaseSdkPromise = (async () => {
+    let lastError = null;
+    for (const src of sources) {
+      try {
+        await loadScript(src);
+        if (globalThis.supabase?.createClient) return;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error("Supabase browser SDK could not be loaded.");
+  })();
+
+  return supabaseSdkPromise;
 }
 
 function setStatus(message) {
